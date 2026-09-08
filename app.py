@@ -284,8 +284,6 @@ def game_screen():
     submit_clicked = False
 
     if not time_is_up:
-        st_autorefresh(interval=1000, limit=ROUND_LIMIT_SEC + 5, key=f"timer_{st.session_state.draw_seq}")
-
         canvas_result = st_canvas(
             fill_color="rgba(0, 0, 0, 0)",
             stroke_width=8,
@@ -304,13 +302,20 @@ def game_screen():
 
         # 캔버스는 그대로 두고, 버튼만 별도의 st.form으로 묶었어요.
         # 이렇게 하면 "그림 그리는 중 계속 전송되는 캔버스 신호"랑
-        # "제출 버튼 클릭"이 서로 꼬여서 클릭이씹히는 문제가 줄어들어요.
+        # "제출 버튼 클릭"이 서로 꼬여서 클릭이 씹히는 문제가 줄어들어요.
         with st.form(key=f"action_form_{st.session_state.draw_seq}", border=False):
             col1, col2 = st.columns([1, 1.4])
             with col1:
                 pass_clicked = st.form_submit_button("🙅 패스", width="stretch")
             with col2:
                 submit_clicked = st.form_submit_button("제출하기 ✅", type="primary", width="stretch")
+
+        # 타이머(자동 새로고침)는 '아직 아무 버튼도 안 눌렸을 때만' 계속 돌게 해요.
+        # 방금 제출/패스를 눌러서 처리 중인데 타이머까지 같이 돌면,
+        # AI 응답을 기다리는 사이에 타이머 신호가 끼어들어서
+        # 방금 처리한 내용이 무시되고 화면이 그림 그리기로 되돌아가는 문제가 생겨요.
+        if not pass_clicked and not submit_clicked:
+            st_autorefresh(interval=1000, limit=ROUND_LIMIT_SEC + 5, key=f"timer_{st.session_state.draw_seq}")
     else:
         st.warning("⏰ 시간이 다 됐어요! 마지막 그림으로 자동 제출할게요.")
 
