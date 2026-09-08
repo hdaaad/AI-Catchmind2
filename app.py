@@ -24,11 +24,7 @@ THUMB_IMG_WIDTH = 150           # 결과 화면 목록에서 쓰는 작은 썸�
 # 무료로 할당량 걱정 없이 쓰는 게 우선이라서, 이미지 입력을 지원하면서
 # 무료 한도가 가장 넉넉한 모델부터 순서대로 시도하게 했어요.
 GEMINI_MODEL_CANDIDATES = [
-    "gemini-2.0-flash-lite",
-    "gemini-2.0-flash",
-    "gemini-2.5-flash",
-    "gemini-flash-latest",
-    "gemini-3.6-flash",
+    "gemini-2.5-flash"
 ]
 
 CATEGORIES = {
