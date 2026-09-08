@@ -19,13 +19,11 @@ CANVAS_HEIGHT = 360
 DISPLAY_IMG_WIDTH = 380         # 그려진 그림을 보여줄 때의 고정 크기 (확대되어 보이지 않도록)
 THUMB_IMG_WIDTH = 150           # 결과 화면 목록에서 쓰는 작은 썸네일 크기
 
-# Gemini 모델은 최신 모델일수록 무료 등급 한도가 더 짜요.
-# (예: 3.6 Flash는 무료 분당 5회 vs 2.0 Flash-Lite는 분당 30회)
-# 무료로 할당량 걱정 없이 쓰는 게 우선이라서, 이미지 입력을 지원하면서
-# 무료 한도가 가장 넉넉한 모델부터 순서대로 시도하게 했어요.
-GEMINI_MODEL_CANDIDATES = [
-    "gemini-2.5-flash"
-]
+# Gemini는 버전 이름(2.5-flash, 3.6-flash 등)을 붙이면 언젠가 서비스 종료가 돼요.
+# "gemini-flash-latest"는 특정 버전이 아니라 "지금 시점의 최신 flash 모델"을 항상
+# 자동으로 가리키는 별명이라서, 구글이 모델을 바꿔도 이 이름 자체는 계속 유효해요.
+# 일단 안정적으로 돌아가는 게 우선이니 이 하나만 쓰도록 단순화했어요.
+GEMINI_MODEL = "gemini-flash-latest"
 
 CATEGORIES = {
     "동물": "🐶",
@@ -82,38 +80,11 @@ def get_gemini_client():
         return None
 
 
-@st.cache_resource
-def get_working_gemini_model():
-    """이 API 키로 실제 쓸 수 있는 Gemini 모델 이름을 자동으로 찾아옵니다.
-    client.models.list()로 지금 계정이 쓸 수 있는 모델 목록을 받아와서,
-    후보 목록 중 그 안에 있는 첫 번째 이름을 골라요.
-    목록 조회 자체가 실패하면(네트워크 문제 등), 그냥 1순위 후보를 그대로 써봅니다."""
+def ask_ai_guess(image: Image.Image, category: str) -> str:
+    """카테고리와 그림을 Gemini에게 보내서, 한 단어로 된 정답 추측을 받아옵니다.
+    후보 모델을 순서대로 '실제로' 호출해보고, 없어진 모델(404)이면 조용히 다음 후보로 넘어가요."""
     client = get_gemini_client()
     if client is None:
-        return None
-
-    try:
-        available = {m.name.replace("models/", "") for m in client.models.list()}
-    except Exception:
-        available = None  # 목록을 못 가져온 것 뿐, 에러로 처리하지 않음
-
-    if available:
-        for name in GEMINI_MODEL_CANDIDATES:
-            if name in available:
-                return name
-        # 후보에 없다면, 목록 중 'flash'가 들어간 아무 모델이나 사용
-        for name in available:
-            if "flash" in name:
-                return name
-
-    return GEMINI_MODEL_CANDIDATES[0]
-
-
-def ask_ai_guess(image: Image.Image, category: str) -> str:
-    """카테고리와 그림을 Gemini에게 보내서, 한 단어로 된 정답 추측을 받아옵니다."""
-    client = get_gemini_client()
-    model = get_working_gemini_model()
-    if client is None or model is None:
         return "(API 키 설정 필요)"
 
     prompt = (
@@ -124,9 +95,10 @@ def ask_ai_guess(image: Image.Image, category: str) -> str:
         f"설명이나 문장 없이 오직 '한 단어'로만 답해주세요. "
         f"예시 답변 형식: 사과 / 원숭이 / 연필"
     )
+
     try:
         response = client.models.generate_content(
-            model=model,
+            model=GEMINI_MODEL,
             contents=[prompt, image],
         )
         answer = (response.text or "").strip()
@@ -138,6 +110,8 @@ def ask_ai_guess(image: Image.Image, category: str) -> str:
         msg = str(e)
         if "RESOURCE_EXHAUSTED" in msg or "429" in msg:
             return "(AI가 너무 바빠요! 1분 후 다시 시도해주세요)"
+        if "NOT_FOUND" in msg or "404" in msg:
+            return "(AI 모델을 찾을 수 없어요. 선생님께 알려주세요)"
         return f"(오류: {e})"
 
 
