@@ -82,7 +82,7 @@ def get_gemini_client():
 
 def ask_ai_guess(image: Image.Image, category: str) -> str:
     """카테고리와 그림을 Gemini에게 보내서, 한 단어로 된 정답 추측을 받아옵니다.
-    후보 모델을 순서대로 '실제로' 호출해보고, 없어진 모델(404)이면 조용히 다음 후보로 넘어가요."""
+    구글 서버가 일시적으로 붐빌 때(503)는 잠깐 쉬었다가 한 번 더 시도해봐요."""
     client = get_gemini_client()
     if client is None:
         return "(API 키 설정 필요)"
@@ -96,23 +96,31 @@ def ask_ai_guess(image: Image.Image, category: str) -> str:
         f"예시 답변 형식: 사과 / 원숭이 / 연필"
     )
 
-    try:
-        response = client.models.generate_content(
-            model=GEMINI_MODEL,
-            contents=[prompt, image],
-        )
-        answer = (response.text or "").strip()
-        if not answer:
-            return "(답을 찾지 못했어요)"
-        first_word = answer.split()[0]
-        return first_word.strip(".,!?'\"()[]")
-    except Exception as e:
-        msg = str(e)
-        if "RESOURCE_EXHAUSTED" in msg or "429" in msg:
-            return "(AI가 너무 바빠요! 1분 후 다시 시도해주세요)"
-        if "NOT_FOUND" in msg or "404" in msg:
-            return "(AI 모델을 찾을 수 없어요. 선생님께 알려주세요)"
-        return f"(오류: {e})"
+    max_attempts = 2  # 503(서버 과부하)일 때 한 번 더 시도해보기 위한 횟수
+    for attempt in range(max_attempts):
+        try:
+            response = client.models.generate_content(
+                model=GEMINI_MODEL,
+                contents=[prompt, image],
+            )
+            answer = (response.text or "").strip()
+            if not answer:
+                return "(답을 찾지 못했어요)"
+            first_word = answer.split()[0]
+            return first_word.strip(".,!?'\"()[]")
+        except Exception as e:
+            msg = str(e)
+            is_overloaded = "UNAVAILABLE" in msg or "503" in msg
+            if is_overloaded and attempt < max_attempts - 1:
+                time.sleep(2)  # 서버가 붐비는 건 보통 금방 풀려요. 2초만 쉬었다가 재시도
+                continue
+            if "RESOURCE_EXHAUSTED" in msg or "429" in msg:
+                return "(AI가 너무 바빠요! 1분 후 다시 시도해주세요)"
+            if is_overloaded:
+                return "(AI 서버가 지금 너무 붐벼요! 잠시 후 다시 시도해주세요)"
+            if "NOT_FOUND" in msg or "404" in msg:
+                return "(AI 모델을 찾을 수 없어요. 선생님께 알려주세요)"
+            return f"(오류: {e})"
 
 
 def is_correct(ai_answer: str, item: dict) -> bool:
@@ -217,6 +225,12 @@ def start_screen():
 # =======================================================
 def process_submission(image_data):
     """제출된 그림을 저장하고 AI에게 정답을 물어본 뒤, 채점 화면으로 넘어갑니다."""
+    # 안전장치: 이번 라운드(draw_seq)에 대해 이미 제출 처리를 했다면 다시 하지 않아요.
+    # (버튼을 여러 번 눌러도 AI를 두 번 부르지 않도록 막아주는 역할)
+    if st.session_state.get("_last_submitted_seq") == st.session_state.draw_seq:
+        return
+    st.session_state._last_submitted_seq = st.session_state.draw_seq
+
     item = st.session_state.current_item
     keyword = item["키워드"]
 
