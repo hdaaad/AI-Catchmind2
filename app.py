@@ -18,6 +18,11 @@ TOTAL_ROUNDS = 5               # 총 문제 수
 CANVAS_WIDTH = 480             # 태블릿 화면 폭을 고려한 그림판 크기
 CANVAS_HEIGHT = 360
 
+# Gemini 모델 이름은 구글이 꽤 자주 바꿔요(새 모델 출시 -> 이전 모델 서비스 종료).
+# 만약 나중에 또 "모델을 찾을 수 없다"는 에러가 나오면, 에러 메시지에 적힌
+# 최신 모델 이름으로 이 한 줄만 바꿔주면 돼요.
+GEMINI_MODEL = "gemini-3.6-flash"
+
 CATEGORIES = {
     "동물": "🐶",
     "과일": "🍎",
@@ -83,7 +88,7 @@ def ask_ai_guess(image: Image.Image, category: str) -> str:
     )
     try:
         response = client.models.generate_content(
-            model="gemini-2.5-flash",
+            model=GEMINI_MODEL,
             contents=[prompt, image],
         )
         answer = (response.text or "").strip()
