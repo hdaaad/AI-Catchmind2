@@ -302,11 +302,15 @@ def game_screen():
         if canvas_result.image_data is not None:
             st.session_state._last_canvas_data = canvas_result.image_data
 
-        col1, col2 = st.columns([1, 1.4])
-        with col1:
-            pass_clicked = st.button("🙅 패스", width="stretch")
-        with col2:
-            submit_clicked = st.button("제출하기 ✅", type="primary", width="stretch")
+        # 캔버스는 그대로 두고, 버튼만 별도의 st.form으로 묶었어요.
+        # 이렇게 하면 "그림 그리는 중 계속 전송되는 캔버스 신호"랑
+        # "제출 버튼 클릭"이 서로 꼬여서 클릭이씹히는 문제가 줄어들어요.
+        with st.form(key=f"action_form_{st.session_state.draw_seq}", border=False):
+            col1, col2 = st.columns([1, 1.4])
+            with col1:
+                pass_clicked = st.form_submit_button("🙅 패스", width="stretch")
+            with col2:
+                submit_clicked = st.form_submit_button("제출하기 ✅", type="primary", width="stretch")
     else:
         st.warning("⏰ 시간이 다 됐어요! 마지막 그림으로 자동 제출할게요.")
 
