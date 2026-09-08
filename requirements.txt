@@ -1,0 +1,6 @@
+streamlit
+pandas
+pillow
+streamlit-drawable-canvas-fix
+streamlit-autorefresh
+google-genai
