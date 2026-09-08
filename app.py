@@ -19,13 +19,16 @@ CANVAS_HEIGHT = 360
 DISPLAY_IMG_WIDTH = 380         # 그려진 그림을 보여줄 때의 고정 크기 (확대되어 보이지 않도록)
 THUMB_IMG_WIDTH = 150           # 결과 화면 목록에서 쓰는 작은 썸네일 크기
 
-# Gemini 모델은 구글이 자주 이름을 바꿔요. 하드코딩된 이름 하나에만 의존하지 않고,
-# 이 후보들 중 지금 이 API 키로 실제 쓸 수 있는 걸 자동으로 찾아서 씁니다.
+# Gemini 모델은 최신 모델일수록 무료 등급 한도가 더 짜요.
+# (예: 3.6 Flash는 무료 분당 5회 vs 2.0 Flash-Lite는 분당 30회)
+# 무료로 할당량 걱정 없이 쓰는 게 우선이라서, 이미지 입력을 지원하면서
+# 무료 한도가 가장 넉넉한 모델부터 순서대로 시도하게 했어요.
 GEMINI_MODEL_CANDIDATES = [
-    "gemini-3.6-flash",
-    "gemini-flash-latest",
-    "gemini-2.5-flash",
+    "gemini-2.0-flash-lite",
     "gemini-2.0-flash",
+    "gemini-2.5-flash",
+    "gemini-flash-latest",
+    "gemini-3.6-flash",
 ]
 
 CATEGORIES = {
@@ -136,6 +139,9 @@ def ask_ai_guess(image: Image.Image, category: str) -> str:
         first_word = answer.split()[0]
         return first_word.strip(".,!?'\"()[]")
     except Exception as e:
+        msg = str(e)
+        if "RESOURCE_EXHAUSTED" in msg or "429" in msg:
+            return "(AI가 너무 바빠요! 1분 후 다시 시도해주세요)"
         return f"(오류: {e})"
 
 
